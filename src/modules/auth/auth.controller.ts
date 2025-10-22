@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus, Res } from "@nestjs/common";
-import { Response } from "express";
+import { Controller, Get, Post, Body, Req,Patch, Param, Delete, HttpCode, HttpStatus, Res } from "@nestjs/common";
+import { Request, Response } from "express";
 import { AuthService } from "./auth.service";
 import { CreateAuthDto } from "./dto/create-auth.dto";
 import { UpdateAuthDto } from "./dto/update-auth.dto";
@@ -25,11 +25,18 @@ export class AuthController {
 
   @HttpCode(HttpStatus.OK)
   @Post("refresh")
-  async refresh(@Body("refresh_token") refreshToken: string, @Res({ passthrough: true }) res: Response) {
-    const token = refreshToken;
-    const newAccessTk = await this.authService.refreshToken(token);
+  async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const refreshToken = req.cookies['refresh_token'];
+    const newAccessTk = await this.authService.refreshToken(refreshToken);
 
-    return newAccessTk;
+    res.cookie("refresh_token", newAccessTk.refresh_token, {
+      httpOnly: true,
+      secure: false, // true in production (HTTPS)
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+
+    return { access_token: newAccessTk.access_token };
   }
 
   @Get()

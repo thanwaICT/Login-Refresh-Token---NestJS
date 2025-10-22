@@ -23,6 +23,10 @@ export class UserService {
     return this.users.find((user) => user.username === username);
   }
 
+  async findById(userId: number): Promise<User | undefined> {
+    return this.users.find((user) => user.userId === userId);
+  }
+
   async findAll(): Promise<User | undefined> {
     return this.users;
   }
