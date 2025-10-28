@@ -1,17 +1,18 @@
-import { Injectable, UnauthorizedException, ForbiddenException } from "@nestjs/common";
+import { Injectable, UnauthorizedException, ForbiddenException, BadRequestException } from "@nestjs/common";
 import { CreateAuthDto } from "./dto/create-auth.dto";
 import { UpdateAuthDto } from "./dto/update-auth.dto";
 import { UserService } from "../user/user.service";
 import { JwtService } from "@nestjs/jwt";
 import { jwtConstants } from "./constants";
 import { ConfigService } from "@nestjs/config";
+import { UserResponseDto } from "../user/dto/response-user.dto";
+import { plainToInstance } from "class-transformer";
+import * as bcrypt from "bcrypt";
 
 @Injectable()
 export class AuthService {
   private readonly secret: string;
   private readonly refreshSecret: string;
-  private readonly secretExpired: string;
-  private readonly refreshExpired: string;
 
   constructor(
     private userService: UserService,
@@ -19,24 +20,31 @@ export class AuthService {
     private configService: ConfigService
   ) {
     this.secret = this.configService.get("JWT_SECRET");
-    this.secretExpired = this.configService.get("JWT_EXPIRES_IN");
-
     this.refreshSecret = this.configService.get("REFRESH_SECRET");
-    this.refreshExpired = this.configService.get("REFRESH_EXPIRES_IN");
   }
 
   findAll() {
     return `This action returns all auth`;
   }
 
-  async signIn(username: string, pass: string): Promise<any> {
-    console.log("username:: ", username, "pass: ", pass);
-    const user = await this.userService.findOne(username);
-    console.log("user:: ", user);
+  async validateUser(username: string, password: string) {
+    const user = await this.userService.findbyUsername(username);
+    if (!user) return null;
 
-    if (user?.password !== pass) {
-      throw new UnauthorizedException();
-    }
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return null;
+
+    return user;
+  }
+
+  async signIn(username: string, pass: string): Promise<any> {
+    const user = await this.validateUser(username, pass);
+    if (!user) throw new BadRequestException("Username or password incorect.");
+
+    // ✅ Transform before returning
+    const userResponse = plainToInstance(UserResponseDto, user, {
+      excludeExtraneousValues: true // only include @Expose() fields
+    });
 
     const { password, ...result } = user;
     const payload = { sub: user.userId, username: user.username };
@@ -55,6 +63,7 @@ export class AuthService {
     });
 
     return {
+      user: userResponse,
       access_token: accessToken,
       refresh_token: refreshToken
     };
@@ -66,7 +75,7 @@ export class AuthService {
       const refreshExpired = this.configService.get("REFRESH_EXPIRES_IN");
 
       const payload = this.jwtService.verify(refreshToken, {
-        secret: jwtConstants.refreshSecret
+        secret: this.refreshSecret
       });
 
       const newAccessToken = await this.jwtService.signAsync(
@@ -76,7 +85,7 @@ export class AuthService {
 
       const newRefreshToken = await this.jwtService.signAsync(
         { sub: payload.sub, username: payload.username },
-        { secret: jwtConstants.refreshSecret, expiresIn: refreshExpired }
+        { secret: this.refreshSecret, expiresIn: refreshExpired }
       );
 
       return {
@@ -84,6 +93,7 @@ export class AuthService {
         refresh_token: newRefreshToken
       };
     } catch (error) {
+      console.log("refreshToken error:: ", error.message);
       throw new ForbiddenException("Invalid or expired refresh token");
     }
   }

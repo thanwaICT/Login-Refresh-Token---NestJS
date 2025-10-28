@@ -1,41 +1,48 @@
-import { Injectable } from "@nestjs/common";
+import { ConflictException, Injectable } from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import { User, UserDocument } from "./schemas/user.schema";
 import { CreateUserDto } from "./dto/create-user.dto";
 import { UpdateUserDto } from "./dto/update-user.dto";
-
-export type User = any;
+import * as bcrypt from "bcrypt";
 
 @Injectable()
 export class UserService {
-  private readonly users = [
-    {
-      userId: 1,
-      username: "john",
-      password: "1111"
-    },
-    {
-      userId: 2,
-      username: "maria",
-      password: "1234"
-    }
-  ];
+  constructor(@InjectModel(User.name) private userModel: Model<User>) {}
+  // private readonly users = [
+  //   {
+  //     userId: 1,
+  //     username: "john",
+  //     password: "1111"
+  //   },
+  //   {
+  //     userId: 2,
+  //     username: "maria",
+  //     password: "1234"
+  //   }
+  // ];
 
-  async findOne(username: string): Promise<User | undefined> {
-    return this.users.find((user) => user.username === username);
+  async create(email: string, username: string, password: string): Promise<User | any> {
+    const checkUserName = await this.findbyUsername(username);
+    if (checkUserName) throw new ConflictException("Username already exists");
+
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    console.log('hashedPassword:: ',hashedPassword);
+    
+    const newUser = new this.userModel({ email, username, password: hashedPassword });
+    return newUser.save();
   }
 
-  async findById(userId: number): Promise<User | undefined> {
-    return this.users.find((user) => user.userId === userId);
+  async findOne(username: string, password: string): Promise<User | null> {
+    return this.userModel.findOne({ username, password }).exec();
   }
 
-  async findAll(): Promise<User | undefined> {
-    return this.users;
+  async findbyUsername(username: string): Promise<User | null> {
+    return this.userModel.findOne({ username }).exec();
   }
 
-  // create(createUserDto: CreateUserDto) {
-  //   return "This action adds a new user";
-  // }
-
-  // update(id: number, updateUserDto: UpdateUserDto) {
-  //   return `This action updates a #${id} user`;
-  // }
+  async findAll(): Promise<User[]> {
+    return this.userModel.find().exec();
+  }
 }

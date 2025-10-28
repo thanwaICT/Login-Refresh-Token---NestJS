@@ -7,10 +7,12 @@ import { JwtModule } from "@nestjs/jwt";
 import { jwtConstants } from "./constants";
 import { JwtStrategy } from "./jwt.strategy";
 import { ConfigModule, ConfigService } from "@nestjs/config";
+import { MongooseModule } from "@nestjs/mongoose";
 
 @Module({
   imports: [
     UserModule,
+    MongooseModule,
     JwtModule.registerAsync({
       global: true,
       imports: [ConfigModule],
@@ -23,7 +25,7 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
     })
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, UserService],
+  providers: [AuthService, JwtStrategy],
   exports: [AuthService, JwtModule]
 })
 export class AuthModule {}
