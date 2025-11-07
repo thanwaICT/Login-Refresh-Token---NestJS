@@ -9,18 +9,6 @@ import * as bcrypt from "bcrypt";
 @Injectable()
 export class UserService {
   constructor(@InjectModel(User.name) private userModel: Model<User>) {}
-  // private readonly users = [
-  //   {
-  //     userId: 1,
-  //     username: "john",
-  //     password: "1111"
-  //   },
-  //   {
-  //     userId: 2,
-  //     username: "maria",
-  //     password: "1234"
-  //   }
-  // ];
 
   async create(email: string, username: string, password: string): Promise<User | any> {
     const checkUserName = await this.findbyUsername(username);
@@ -28,8 +16,6 @@ export class UserService {
 
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
-    console.log('hashedPassword:: ',hashedPassword);
-    
     const newUser = new this.userModel({ email, username, password: hashedPassword });
     return newUser.save();
   }

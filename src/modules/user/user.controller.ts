@@ -22,12 +22,6 @@ export class UserController {
     return userResponse;
   }
 
-  // @UseGuards(JwtAuthGuard)
-  // @Get(":id")
-  // // findOne(@Param("id") id: string) {
-  // //   return this.userService.findById(+id);
-  // // }
-
   @UseGuards(JwtAuthGuard)
   @Post()
   async createUser(@Body() body: CreateUserDto, @Res({ passthrough: true }) res: Response) {

@@ -41,13 +41,13 @@ export class AuthService {
     const user = await this.validateUser(username, pass);
     if (!user) throw new BadRequestException("Username or password incorect.");
 
-    // ✅ Transform before returning
+    // Transform before returning
     const userResponse = plainToInstance(UserResponseDto, user, {
       excludeExtraneousValues: true // only include @Expose() fields
     });
 
     const { password, ...result } = user;
-    const payload = { sub: user.userId, username: user.username };
+    const payload = { userId: user.userId, username: user.username };
 
     // Create both tokens
     const expiresIn = this.configService.get("JWT_EXPIRES_IN");
@@ -61,6 +61,8 @@ export class AuthService {
       secret: this.refreshSecret,
       expiresIn: refreshExpired
     });
+
+    // Insert log login
 
     return {
       user: userResponse,
@@ -79,12 +81,12 @@ export class AuthService {
       });
 
       const newAccessToken = await this.jwtService.signAsync(
-        { sub: payload.sub, username: payload.username },
+        { userId: payload.userId, username: payload.username },
         { expiresIn: expiresIn }
       );
 
       const newRefreshToken = await this.jwtService.signAsync(
-        { sub: payload.sub, username: payload.username },
+        { userId: payload.userId, username: payload.username },
         { secret: this.refreshSecret, expiresIn: refreshExpired }
       );
 
@@ -93,7 +95,6 @@ export class AuthService {
         refresh_token: newRefreshToken
       };
     } catch (error) {
-      console.log("refreshToken error:: ", error.message);
       throw new ForbiddenException("Invalid or expired refresh token");
     }
   }
